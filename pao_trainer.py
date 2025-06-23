@@ -168,7 +168,60 @@ class PAOTrainer:
         total_attempts = total_correct + total_incorrect
         overall_accuracy = (total_correct / total_attempts * 100) if total_attempts > 0 else 0
         
-        print(f"\n📊 OVERALL STATISTICS:")
+        # Calculate progress metrics
+        learned_count = 0  # 70%+ accuracy
+        mastered_count = 0  # 90%+ accuracy
+        attempted_count = 0  # Any attempts
+        
+        for number in self.stats:
+            accuracy = self.get_accuracy(number)
+            total = self.stats[number]["correct"] + self.stats[number]["incorrect"]
+            
+            if total > 0:
+                attempted_count += 1
+                if accuracy >= 70:
+                    learned_count += 1
+                if accuracy >= 90:
+                    mastered_count += 1
+        
+        # Calculate percentages
+        learned_percentage = (learned_count / 100) * 100
+        mastered_percentage = (mastered_count / 100) * 100
+        attempted_percentage = (attempted_count / 100) * 100
+        
+        # Create progress bars
+        def create_progress_bar(percentage: float, width: int = 20) -> str:
+            filled = int((percentage / 100) * width)
+            bar = "█" * filled + "░" * (width - filled)
+            return f"{bar} {percentage:.0f}%"
+        
+        print(f"\n🎯 YOUR PAO MASTERY PROGRESS:")
+        print("="*60)
+        print(f"🔥 MASTERED (90%+):  {create_progress_bar(mastered_percentage)} ({mastered_count}/100)")
+        print(f"✅ LEARNED (70%+):   {create_progress_bar(learned_percentage)} ({learned_count}/100)")
+        print(f"📚 ATTEMPTED:        {create_progress_bar(attempted_percentage)} ({attempted_count}/100)")
+        print("="*60)
+        
+        # Overall strength indicator
+        strength_score = (mastered_percentage * 1.0 + learned_percentage * 0.7 + attempted_percentage * 0.3) / 2
+        strength_levels = [
+            (0, "🌱 Beginner"),
+            (10, "📖 Student"), 
+            (25, "🎓 Apprentice"),
+            (50, "💪 Practitioner"),
+            (70, "🧠 Expert"),
+            (85, "🏆 Master"),
+            (95, "🌟 Grandmaster")
+        ]
+        
+        current_level = "🌱 Beginner"
+        for threshold, level in strength_levels:
+            if strength_score >= threshold:
+                current_level = level
+        
+        print(f"🎖️  CURRENT STRENGTH: {current_level} ({strength_score:.0f}/100)")
+        
+        print(f"\n📊 SESSION STATISTICS:")
         print(f"   Total attempts: {total_attempts}")
         print(f"   Overall accuracy: {overall_accuracy:.1f}%")
         print(f"   Session: {self.session_stats['correct']}/{self.session_stats['total']} correct")
@@ -176,12 +229,15 @@ class PAOTrainer:
         # Show weakest numbers
         if total_attempts > 0:
             weak_numbers = self.get_weakest_numbers(5)
-            print(f"\n🎯 WEAKEST ASSOCIATIONS:")
+            print(f"\n🎯 PRIORITY FOCUS (Weakest):")
             for number, accuracy in weak_numbers:
                 total = self.stats[number]["correct"] + self.stats[number]["incorrect"]
                 if total > 0:
                     person = self.pao_data[number]['person']
                     print(f"   {number}: {person} ({accuracy:.0f}% - {total} attempts)")
+                else:
+                    person = self.pao_data[number]['person']
+                    print(f"   {number}: {person} (Not yet attempted)")
     
     def test_number(self, number: str) -> bool:
         """Test user knowledge of a specific number."""
@@ -368,6 +424,15 @@ class PAOTrainer:
     def training_mode(self) -> None:
         """Main training loop."""
         print("\n🎯 TRAINING MODE")
+        
+        # Show quick progress summary
+        learned_count = sum(1 for number in self.stats if self.get_accuracy(number) >= 70 and 
+                           self.stats[number]["correct"] + self.stats[number]["incorrect"] > 0)
+        mastered_count = sum(1 for number in self.stats if self.get_accuracy(number) >= 90 and 
+                            self.stats[number]["correct"] + self.stats[number]["incorrect"] > 0)
+        
+        print(f"Current Progress: {mastered_count} mastered, {learned_count} learned out of 100 combinations")
+        
         print("Commands: 'quit' to exit, 'stats' for detailed statistics")
         print("Using spaced repetition - recent questions will appear more frequently!")
         print("Press Enter to continue with smart number selection...")
